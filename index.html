@@ -157,19 +157,6 @@
             
         }
 
-        function onLoad(){ // Modification de l'accès aux éléments graphiques
-            const loadButton = document.getElementById('loadButton');
-            loadButton.disabled = true;
-            loadButton.textContent = 'Chargement...';
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('cancelButton').classList.remove('hidden');
-            document.getElementById('counter').classList.remove('hidden');
-            document.getElementById('not_paid').classList.remove('hidden');
-            document.getElementById('not_paid_count').textContent = '0';
-            document.getElementById('orderCount').textContent = '0';
-            abortController = new AbortController();
-        }
-
         async function getOrdersFromWordpress(url, username, password, startDate, endDate, signal) { //Récupération des Ordees depuis Wordpress
             const star_d = new Date(startDate);
             const end_d = new Date(endDate);
@@ -598,9 +585,19 @@
             document.getElementById('not_paid_count').textContent = not_paid_value;
         }
 
-        function StartRecup(){
+        function onLoad(){ // Modification de l'accès aux éléments graphiques
+            const loadButton = document.getElementById('loadButton');
+            loadButton.disabled = true;
+            loadButton.textContent = 'Chargement...';
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('cancelButton').classList.remove('hidden');
+            document.getElementById('counter').classList.remove('hidden');
+            document.getElementById('not_paid').classList.remove('hidden');
+            document.getElementById('not_paid_count').textContent = '0';
+            document.getElementById('orderCount').textContent = '0';
+            abortController = new AbortController();
+       
             try{
-                onLoad();
                 GetAndDestroy();
                 configTable();
                 dateLogic();
