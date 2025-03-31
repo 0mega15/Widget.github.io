@@ -253,7 +253,7 @@
             const checkouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'checkout/sessions',abortController.signal);
             const products = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'products',abortController.signal);
 
-            console.log(typeof(orders));
+            warn(typeOf(orders));
             
             return [orders, charges, payouts, refunds, transactions, checkouts, products]
         }
@@ -419,7 +419,8 @@
         }
 
         async function table_JVente(orders) {
-        const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
+            warn(typeOf(orders));
+            const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
             const records = [];
             const detailRecords = [];
             const journaux = [];
