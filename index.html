@@ -234,6 +234,7 @@
                     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
                     startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
                     endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
+                    alert("ligne 237 " + toString(typeof(startDate)))
                     return [startDate,endDate]
                 }
             else if(!endDate){
@@ -255,7 +256,7 @@
             const transactions = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'balance_transactions',abortController.signal);
             const checkouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'checkout/sessions',abortController.signal);
             const products = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'products',abortController.signal);
-            
+            alert("ligne 259 " + toString(typeof(orders)))
             return [orders, charges, payouts, refunds, transactions, checkouts, products]
         }
 
@@ -421,7 +422,7 @@
         }
 
         async function table_JVente(orders) {
-        const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
+            const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
             const records = [];
             const detailRecords = [];
             const journaux = [];
@@ -612,9 +613,11 @@
                 stripe_url = configTable[3];
                 stripe_apikey = configTable[4];
                 startDate = dateLogic[0];
+                alert("ligne 615 " + toString(typeof(startDate)))
                 endDate = dateLogic[1];
                 initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey);
                 orders = initTable[0];
+                alert("ligne 620 " + toString(typeof(orders)))
                 charges = initTable[1];
                 payouts = initTable[2];
                 refunds = initTable[3];
