@@ -252,6 +252,8 @@
             const transactions = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'balance_transactions',abortController.signal);
             const checkouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'checkout/sessions',abortController.signal);
             const products = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'products',abortController.signal);
+
+            console.log(typeof(orders));
             
             return [orders, charges, payouts, refunds, transactions, checkouts, products]
         }
