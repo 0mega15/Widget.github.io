@@ -154,7 +154,8 @@
             const wp_password = config.wp_password[0];
             const stripe_url = config.stripe_url[0];
             const stripe_apikey = config.stripe_apikey[0];
-            
+
+            return [wp_url, wp_user, wp_password, stripe_url, stripe_apikey]
         }
 
         async function getOrdersFromWordpress(url, username, password, startDate, endDate, signal) { //Récupération des Ordees depuis Wordpress
@@ -242,7 +243,7 @@
             return [startDate,endDate]
         }
 
-        async function initTable(startDate , endDate) {
+        async function initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey) {
 
             const orders = await getOrdersFromWordpress(wp_url, wp_user, wp_password, startDate, endDate, abortController.signal);
             const charges = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'charges', abortController.signal);
@@ -600,10 +601,15 @@
             try{
                 GetAndDestroy();
                 configTable();
+                wp_url = configTable[0];
+                wp_user = configTable[1];
+                wp_password = configTable[2];
+                stripe_url = configTable[3];
+                stripe_apikey = configTable[4];
                 dateLogic();
                 startDate = dateLogic[0];
                 endDate = dateLogic[1];
-                initTable(startDate, endDate);
+                initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey);
                 orders = initTable[0];
                 charges = initTable[1];
                 payouts = initTable[2];
