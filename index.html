@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+            }
+    
+            .form-container {
+                margin: 20px;
+            }
+    
+            .form-group {
+                margin-bottom: 10px;
+            }
+    
+            label {
+                display: block;
+            }
+    
+            input {
+                width: 100%;
+                padding: 8px;
+                margin-top: 5px;
+                box-sizing: border-box;
+            }
+    
+            button {
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #45a049;
+            }
+    
+            button:disabled {
+                background-color: #999;
+            }
+            .date-inputs {
+                margin: 10px 0;
+            }
+            .loader {
+                border: 8px solid #f3f3f3;
+                border-top: 8px solid #3498db;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+                display: none;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .hidden {
+                display: none;
+            }
+            #counter {
+                margin-top: 10px;
+            }
+            #not_paid {
+                margin-top: 10px;
+            }
+        </style>
+        <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    </head>
+    <body>
+        NB : Si aucune date n'est remplie, le dernier mois(non glissant) est pris par défaut.
+    <div class="form-container">
+        <div class="date-inputs">
+            <label for="startDate">Date de début: </label>
+            <input type="date" id="startDate">
+            <label for="endDate">Date de fin (aujourd'hui si vide): </label>
+            <input type="date" id="endDate">
+        </div>
+        <button id="loadButton" onclick="StartRecup()">Charger</button>
+        <button id="cancelButton" class="hidden" onclick="cancelLoad()">Annuler</button>
+        <div id="counter" class="hidden">Nombre de commandes chargées: <span id="orderCount">0</span></div>
+        <div id="not_paid" class="hidden">Nombre de paiements non faits: <span id="not_paid_count">0</span></div>
+        <div class = "loader" class = "hidden" id="loader"></div>
+    </div>
+    <script>
+        grist.ready({requiredAccess: 'full'});
+
+        let abortController;
+
+        function cancelLoad() {
+            if (abortController) {
+                abortController.abort();
+            }
+        }
+
+        function round(value){ //Réduit les problèmes d'imprécision des float
+            return Math.round(value*100)/100;
+        }
+
+        async function GetAndDestroy() { // Récupère toutes les tables et efface leurs contenu
+
+            // Récupération des tables
+            const tblOrders = await grist.getTable("Orders");
+            const tbl_detail = await grist.getTable("Details");
+            const tblStripe_charge = await grist.getTable("Stripe_charges");
+            const tblStripe_payout = await grist.getTable("Stripe_payouts");
+            const tblStripe_refund = await grist.getTable("Stripe_refunds");
+            const tblStripe_transaction = await grist.getTable("Stripe_transactions");
+            const tblConfig = await grist.getTable("Config");
+            const tblJournal = await grist.getTable("Journal_vente");
+            const tblBanque = await grist.getTable("Journal_banque");
+            const tblCheckout = await grist.getTable("Journal_checkout");
+            const tblItem = await grist.getTable("Item_stripe");
+            
+            // Puis destruction
+            const currentRecords_charges = await grist.docApi.fetchTable("Stripe_charges");
+            await tblStripe_charge.destroy(currentRecords_charges.id); // clean table charges
+
+            const currentRecords_payouts = await grist.docApi.fetchTable("Stripe_payouts");
+            await tblStripe_payout.destroy(currentRecords_payouts.id); // clean table payouts
+
+            const currentRecords_refunds = await grist.docApi.fetchTable("Stripe_refunds");
+            await tblStripe_refund.destroy(currentRecords_refunds.id); // clean table refunds
+
+            const currentRecords_transactions = await grist.docApi.fetchTable("Stripe_transactions");
+            await tblStripe_transaction.destroy(currentRecords_transactions.id); // clean table transactions
+
+            const currentRecords_orders = await grist.docApi.fetchTable("Orders");
+            await tblOrders.destroy(currentRecords_orders.id); // clean table orders
+
+            const currentRecords_details = await grist.docApi.fetchTable("Details");
+            await tbl_detail.destroy(currentRecords_details.id); // clean table Details
+
+            const currentRecords_journaux = await grist.docApi.fetchTable("Journal_vente");
+            await tblJournal.destroy(currentRecords_journaux.id); // clean table Journal_vente
+
+            const currentRecords_banque = await grist.docApi.fetchTable("Journal_banque");
+            await tblBanque.destroy(currentRecords_banque.id); // clean table Journal_banque
+
+            const currentRecords_checkout = await grist.docApi.fetchTable("Journal_checkout");
+            await tblCheckout.destroy(currentRecords_checkout.id); // clean table Journal_checkout
+
+            const currentRecords_items = await grist.docApi.fetchTable("Item_stripe");
+            await tblItem.destroy(currentRecords_items.id); // clean table Item_stripe
+        } 
+
+        async function configTable() { // Re-Créée la table config avec ses propres données
+            
+            const config = await grist.docApi.fetchTable("Config");
+            const wp_url = config.wp_url[0];
+            const wp_user = config.wp_user[0];
+            const wp_password = config.wp_password[0];
+            const stripe_url = config.stripe_url[0];
+            const stripe_apikey = config.stripe_apikey[0];
+            
+        }
+
+        function onLoad(){ // Modification de l'accès aux éléments graphiques
+            const loadButton = document.getElementById('loadButton');
+            loadButton.disabled = true;
+            loadButton.textContent = 'Chargement...';
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('cancelButton').classList.remove('hidden');
+            document.getElementById('counter').classList.remove('hidden');
+            document.getElementById('not_paid').classList.remove('hidden');
+            document.getElementById('not_paid_count').textContent = '0';
+            document.getElementById('orderCount').textContent = '0';
+            abortController = new AbortController();
+        }
+
+        async function getOrdersFromWordpress(url, username, password, startDate, endDate, signal) { //Récupération des Ordees depuis Wordpress
+            const star_d = new Date(startDate);
+            const end_d = new Date(endDate);
+            let output = [];
+            let page = 1;
+            while(true){
+                const Params = {
+                    after: star_d.toISOString(),
+                    before: end_d.toISOString(),
+                    page,
+                    per_page: 100,                  // nombre d'orders maximum par page
+                    dp: 6,                          // permet d'avoir des nombres avec 6 chiffres apres la virgule
+                };   
+                const response = await axios.get(url + '/wp-json/wc/v3/orders', {
+                    params: Params,
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(username + ':' + password)
+                    },
+                    signal // indique si la requete est annulé ou non
+                });
+                output.push(...response.data);
+                page++;
+                document.getElementById('orderCount').textContent = output.length; // mise a jour du nombre de commandes chargées
+                if (!response.data.length){
+                    // break apres avoir recuperer toutes les commandes
+                    break;                 
+                }
+            }
+            return output;
+        }
+
+        async function getChargesFromStripe(url, apiKey, startDate, endDate, type, signal) { // Récupération des charges depuis Stripe
+            const startDate_Timestamp = Math.floor(new Date(startDate).getTime() / 1000);
+            const endDate_Timestamp = Math.floor(new Date(endDate).getTime() / 1000);
+            let output = [];
+            let lastChargeId = null;
+            while(true){
+                const params = {
+                    created: {
+                        gt: startDate_Timestamp,
+                        lt: endDate_Timestamp
+                    },
+                    limit: 100,
+                    starting_after: lastChargeId,
+                };
+                const response = await axios.get(url + '/v1/'+ type, {
+                    headers: {
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    params: params,
+                    signal
+                });
+                output.push(...response.data.data);
+                if (!response.data.data.length){
+                    break;
+                }
+                lastChargeId = response.data.data[response.data.data.length - 1].id;
+            }
+            return output;
+        }
+
+        function dateLogic(){
+
+            let startDate = document.getElementById('startDate').value;
+            let endDate = document.getElementById('endDate').value;
+
+            if (!startDate && !endDate){
+                    const today = new Date();
+                    const currentMonth = today.getMonth();
+                    const currentYear = today.getFullYear();
+                    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                    startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
+                    endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
+                }
+            else if(!endDate){
+                    endDate = new Date(); 
+                }
+            else if (startDate > endDate || !startDate) {
+                    alert("Veuillez sélectionner des dates de début et de fin cohérentes.");
+                    return;
+                }
+            return [startDate,endDate]
+        }
+
+        async function initTable(startDate , endDate) {
+
+            const orders = await getOrdersFromWordpress(wp_url, wp_user, wp_password, startDate, endDate, abortController.signal);
+            const charges = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'charges', abortController.signal);
+            const payouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'payouts',abortController.signal);
+            const refunds = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'refunds',abortController.signal);
+            const transactions = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'balance_transactions',abortController.signal);
+            const checkouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'checkout/sessions',abortController.signal);
+            const products = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'products',abortController.signal);
+            
+            return [orders, charges, payouts, refunds, transactions, checkouts, products]
+        }
+
+        async function getLostData(checkouts, products) {
+
+            //data des checkouts pour recupérer le nom des items qui ne sont pas marqués dans stripe/charges
+            const records_checkouts = [];
+            const records_items = [];
+            for(const checkout of checkouts){
+                //pas de possibilité de pluriel sur line_items ou il y a le nom rechercher
+                const response = await axios.get(stripe_url + '/v1/'+ `checkout/sessions/${checkout.id}/line_items`, {
+                    headers: {
+                        'Authorization': 'Bearer ' + stripe_apikey
+                    },
+                });
+                const items = response.data.data;
+                for(const item of items){
+                    //data pour items_stripe
+                    const product = products.find(x => x.id == item.price.product);
+                    if (product){
+                        const record_item = {
+                            date_created: new Date(item.price.created * 1000).toISOString(), // Convert to ISO string
+                            name: item.description,
+                            quantity: item.quantity,
+                            PU: item.price.unit_amount/100,
+                            code_TVA: product.tax_code,
+                            TVA_behavior: item.price.tax_behavior,
+                            P_HT: item.amount_subtotal/100,
+                            montant_TVA: item.amount_tax/100,
+                            total_price: item.amount_total/100,
+                        };
+                        records_items.push(record_item);
+                    }
+                        const record_checkout={
+                        Date_created: new Date(checkout.created * 1000).toISOString(), // Convert to ISO string
+                        c_id: item.id,
+                        nom: item.description,
+                        debit: item.price.unit_amount/100,
+                        payment_intent: checkout.payment_intent
+                    };
+                    records_checkouts.push(record_checkout);
+                }
+            }
+            await tblItem.upsert(records_items.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
+            await tblCheckout.upsert(records_checkouts.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
+
+        }
+
+        async function table_SChargesAndJBanques(charges, transactions) {
+            const records_charges = [];
+            const journaux_banque = [];
+            for (const charge of charges) {
+                //data charges
+                const record_charge =  {
+                    charge_id: charge.id,
+                    date_created: new Date(charge.created * 1000).toISOString(), // Convert to ISO string
+                    description: charge.description,
+                    type: charge.object,
+                    amount: charge.amount/100,
+                    status: charge.status,
+                    transaction_id: charge.balance_transaction,
+                };
+                records_charges.push(record_charge);
+
+                //data journal banque
+                const banque_transaction = transactions.find(x => x.id == charge.balance_transaction);
+                if(banque_transaction){
+                    const banque_charge ={
+                        Date_created: new Date(charge.created * 1000).toISOString(), // Convert to ISO string
+                        stripe: charge.object,
+                        description0: charge.description,
+                        credit: charge.amount/100,
+                        payment_intent: charge.payment_intent,
+                    };
+                    journaux_banque.push(banque_charge);
+                    const banque_charge_fee={
+                        Date_created: new Date(charge.created * 1000).toISOString(), // Convert to ISO string
+                        stripe: "fee",
+                        description0: charge.description,
+                        debit: banque_transaction.fee/100,
+                        payment_intent: charge.payment_intent,
+                    };
+                    journaux_banque.push(banque_charge_fee);
+                    await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
+                }
+                await tblStripe_charge.upsert(records_charges.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des paiements charges dans grist
+            }
+            
+        }
+
+        async function table_SPayoutsAndJBanques(payouts) {
+            const records_payouts = [];
+            const journaux_banque = [];
+            for (const payout of payouts) {
+                //data table Stripe_payouts
+                const record_payout =  {
+                    payout_id: payout.id,
+                    date_created: new Date(payout.created * 1000).toISOString(), // Convert to ISO string
+                    description: payout.description,
+                    type: payout.object,
+                    amount: payout.amount/100,
+                    status: payout.status,
+                    transaction_id: payout.balance_transaction,
+                };
+                records_payouts.push(record_payout);
+
+                //data table Journal_banque
+                const banque_payout ={
+                    Date_created: new Date(payout.created * 1000).toISOString(), // Convert to ISO string
+                    stripe: payout.object,
+                    description0: payout.description,
+                    debit: payout.amount > 0 ? payout.amount/100 : 0,
+                    credit: payout.amount < 0 ? (payout.amount/100)*(-1) : 0,
+                };
+                journaux_banque.push(banque_payout);
+            }
+            await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
+            await tblStripe_payout.upsert(records_payouts.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des payouts dans grist
+        }
+
+        async function table_SRefundsAndJBanques(refunds) {
+            const records_refunds = [];
+            for (const refund of refunds) {
+                //data table Journal_banque
+                const banque_refund ={
+                    Date_created: new Date(refund.created * 1000).toISOString(), // Convert to ISO string
+                    stripe: refund.object,
+                    debit: refund.amount/100,
+                    description0: refund.description,
+                    ch_id: refund.charge,
+                    payment_intent: refund.payment_intent,
+                };
+                journaux_banque.push(banque_refund);
+
+                //data refunds
+                const record_refund =  {
+                    refund_id: refund.id,
+                    date_created: new Date(refund.created * 1000).toISOString(), // Convert to ISO string
+                    type: refund.object,
+                    amount: refund.amount/100,
+                    status: refund.status,
+                    charge_id: refund.charge,
+                    transaction_id: refund.balance_transaction,
+                };
+                records_refunds.push(record_refund);
+            }
+            await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
+        }
+
+        async function table_STransactions(transactions) {
+            //data transactions
+            const records_transactions = [];
+            for (const transaction of transactions) {
+                const record_transaction =  {
+                    transaction_id: transaction.id,
+                    fee: transaction.fee/100,
+                    net: transaction.net/100,
+                };
+                records_transactions.push(record_transaction);
+            }
+            await tblStripe_transaction.upsert(records_transactions.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des transactions dans grist pour recuperer les fee et net present seulement dans transactions
+        }
+
+        async function table_JVente(orders) {
+        const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
+            const records = [];
+            const detailRecords = [];
+            const journaux = [];
+            for (const order of orders) {
+                // data pour la table Journal_Vente
+                if(order.status == "completed" || order.status == "refunded"){
+                    const journal_commande = {
+                        Date_created0: order.date_created,
+                        order_id: order.id,
+                        libelle0: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                        Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                        debit0: round(order.total),
+                    };
+                    journaux.push(journal_commande);
+                }
+                for(const item of order.line_items){
+                    // data pour la table Journal_Vente
+                    if(order.status == "completed" || order.status == "refunded"){
+                        const ind = item_wc.Produits.findIndex(record => record == `${item.name}`);
+                        if(item_wc.Categorie[ind] == "Sejours"){
+                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0;
+
+                            const ind_heb = item_wc.Categorie.findIndex(record => record == "Sejours_1");
+                            const journal_heb = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind_heb],
+                                credit: round((parseFloat(item.total)+tax)*0.1/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            const journal_heb_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 10,
+                                libelle_TVA: item_wc.Produits[ind_heb]+ ' - TVA',
+                                credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            journaux.push(journal_heb);
+                            journaux.push(journal_heb_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                            const ind_rest = item_wc.Categorie.findIndex(record => record == "Sejours_2");
+                            const journal_rest = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind_rest],
+                                credit: round((parseFloat(item.total)+tax)*0.1/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            const journal_rest_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 10,
+                                libelle_TVA: item_wc.Produits[ind_rest]+ ' - TVA',
+                                credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            journaux.push(journal_rest);
+                            journaux.push(journal_rest_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                            const ind_sej = item_wc.Categorie.findIndex(record => record == "Sejours_3");
+
+                            const journal_sejour = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind_sej],
+                                credit: round(((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+
+                            const journal_sejour_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 5.5,
+                                libelle_TVA: item_wc.Produits[ind_sej] + ' - TVA',
+                                credit: round((((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055)*0.055),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+
+                            journaux.push(journal_sejour);
+                            journaux.push(journal_sejour_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                        }
+                        else{
+                            const journal_item = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item.name,
+                                credit: round(item.total),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            const journal_tva = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: order.tax_lines.length > 0 ? order.tax_lines[0].rate_percent : 0,
+                                libelle_TVA: order.tax_lines.length > 0 ? item.name + ' - ' + order.tax_lines[0].rate_percent : 0,
+                                credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            journaux.push(journal_item);
+                            journaux.push(journal_tva);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                        }
+                    }
+                    
+                    //data pour la table Orders
+                    const record = {
+                        Date_created: order.date_created,
+                        order_id: order.id,
+                        first_name: order.billing.first_name,
+                        last_name: order.billing.last_name,
+                        email: order.billing.email,
+                        item_name: item.name,
+                        quantity: item.quantity,
+                        PU_HT: item.price,
+                        Taux_TVA: order.tax_lines.find((t) => t.rate_id == item.taxes[0].id).rate_percent,
+                        O_TVA: order.cart_tax,
+                        P_HT: item.total,
+                        Montant_TVA: item.taxes[0].total,
+                        O_TTC: order.total,
+                        status: order.status,
+                        payment_method: order.payment_method,
+                        date_paid: order.date_paid,
+                        transaction_id: order.transaction_id,
+                    };
+                    records.push(record);
+                    
+
+                    //data pour la table Details, pour les coupons et refunds.
+                    for (const coupon of order.coupon_lines) {
+                        detailRecords.push({
+                            order_id: order.id,
+                            coupon_code: coupon.code,
+                            coupon_montant: coupon.discount,
+                        });
+                    }
+                    for (const refund of order.refunds) {
+                        detailRecords.push({
+                            order_id: order.id, // l'affectation de refund_reason and refund_total se fait en correspondance avec order_id
+                            refund_reason: refund.reason,
+                            refund_total: refund.total
+                        });
+                    }
+                }    
+            }
+            document.getElementById('orderCount').textContent = records.length;//mise a jour du nombre de commandes chargées
+            await tblOrders.upsert(records.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture des commandes dans grist
+            await tbl_detail.upsert(detailRecords.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture dans details pour coupons et refunds 
+            
+            //mise a jour de la ligne indicant des erreurs de paiements
+            const new_records = await grist.docApi.fetchTable("Orders");
+            let not_paid_value = 0;
+            for(let i = 0; i < new_records.payement_succeded.length; i++){
+                if(new_records.payement_succeded[i] != "succeeded" && !new_records.date_paid[i] &&(new_records.status[i] == "processing" || new_records.status[i] == "completed")){
+                    not_paid_value++;
+                }
+            }
+            document.getElementById('not_paid_count').textContent = not_paid_value;
+        }
+
+        function StartRecup(){
+            try{
+                onLoad();
+                GetAndDestroy();
+                configTable();
+                dateLogic();
+                startDate = dateLogic[0];
+                endDate = dateLogic[1];
+                initTable(startDate, endDate);
+                orders = initTable[0];
+                charges = initTable[1];
+                payouts = initTable[2];
+                refunds = initTable[3];
+                transactions = initTable[4];
+                checkouts = initTable[5];
+                products = initTable[6];
+                table_SChargesAndJBanques(charges, transactions);
+                table_SPayoutsAndJBanques(payouts);
+                table_SRefundsAndJBanques(refunds);
+                table_STransactions(transactions);
+                table_JVente(orders);
+            }
+            catch (error) {
+                if (axios.isCancel(error)) {
+                    console.log("Chargement annulé");
+                } else {
+                    console.error("Erreur lors du chargement des commandes:", error);
+                    alert("Une erreur s'est produite lors du chargement des commandes. Veuillez réessayer.");
+                }
+            }
+            finally{
+                loadButton.disabled = false;
+                loadButton.textContent = 'Charger commandes';
+                document.getElementById('cancelButton').classList.add('hidden');
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+        
+
+    </script>
+    </body>
+</html>
