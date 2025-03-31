@@ -78,7 +78,7 @@
             <label for="endDate">Date de fin (aujourd'hui si vide): </label>
             <input type="date" id="endDate">
         </div>
-        <button id="loadButton" onclick="onLoad()">Charger</button>
+        <button id="loadButton" onclick="StartRecup()">Charger</button>
         <button id="cancelButton" class="hidden" onclick="cancelLoad()">Annuler</button>
         <div id="counter" class="hidden">Nombre de commandes chargées: <span id="orderCount">0</span></div>
         <div id="not_paid" class="hidden">Nombre de paiements non faits: <span id="not_paid_count">0</span></div>
@@ -154,7 +154,7 @@
             const wp_password = config.wp_password[0];
             const stripe_url = config.stripe_url[0];
             const stripe_apikey = config.stripe_apikey[0];
-
+            
             return [wp_url, wp_user, wp_password, stripe_url, stripe_apikey]
         }
 
@@ -232,15 +232,16 @@
                     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
                     startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
                     endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
+                    return [startDate,endDate]
                 }
             else if(!endDate){
-                    endDate = new Date(); 
+                    endDate = new Date();
+                    return [startDate,endDate]
                 }
             else if (startDate > endDate || !startDate) {
                     alert("Veuillez sélectionner des dates de début et de fin cohérentes.");
                     return;
                 }
-            return [startDate,endDate]
         }
 
         async function initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey) {
@@ -252,8 +253,6 @@
             const transactions = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'balance_transactions',abortController.signal);
             const checkouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'checkout/sessions',abortController.signal);
             const products = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'products',abortController.signal);
-
-            warn(typeOf(orders));
             
             return [orders, charges, payouts, refunds, transactions, checkouts, products]
         }
@@ -419,8 +418,7 @@
         }
 
         async function table_JVente(orders) {
-            warn(typeOf(orders));
-            const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
+        const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
             const records = [];
             const detailRecords = [];
             const journaux = [];
@@ -589,7 +587,7 @@
             document.getElementById('not_paid_count').textContent = not_paid_value;
         }
 
-        function onLoad(){ // Modification de l'accès aux éléments graphiques
+        function onLoad() { // Modification de l'accès aux éléments graphiques
             const loadButton = document.getElementById('loadButton');
             loadButton.disabled = true;
             loadButton.textContent = 'Chargement...';
@@ -602,6 +600,7 @@
             abortController = new AbortController();
        
             try{
+                dateLogic();
                 GetAndDestroy();
                 configTable();
                 wp_url = configTable[0];
@@ -609,7 +608,6 @@
                 wp_password = configTable[2];
                 stripe_url = configTable[3];
                 stripe_apikey = configTable[4];
-                dateLogic();
                 startDate = dateLogic[0];
                 endDate = dateLogic[1];
                 initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey);
