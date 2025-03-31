@@ -159,8 +159,8 @@
         }
 
         async function getOrdersFromWordpress(url, username, password, startDate, endDate, signal) { //Récupération des Ordees depuis Wordpress
-            alert(typeOf(endDate));
-            alert(typeOf(startDay));
+            alert(typeof(endDate));
+            alert(typeof(startDay));
             const star_d = new Date(startDate);
             const end_d = new Date(endDate);
             let output = [];
@@ -305,7 +305,7 @@
         }
 
         async function table_SChargesAndJBanques(charges, transactions) {
-            alert(typeOf(charges));
+            alert(typeof(charges));
             const records_charges = [];
             const journaux_banque = [];
             for (const charge of charges ) {
