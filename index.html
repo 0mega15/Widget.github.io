@@ -144,6 +144,11 @@
 
             const currentRecords_items = await grist.docApi.fetchTable("Item_stripe");
             await tblItem.destroy(currentRecords_items.id); // clean table Item_stripe
+
+            // Renvoi des tableaux détruit
+            return [tblStripe_charge, tblStripe_payout, tblStripe_refund, tblStripe_transaction,
+                tblOrders, tbl_detail, tblJournal, tblBanque, tblCheckout, tblItem
+            ]
         } 
 
         async function configTable() { // Re-Créée la table config avec ses propres données
@@ -256,7 +261,7 @@
             return [orders, charges, payouts, refunds, transactions, checkouts, products]
         }
 
-        async function getLostData(checkouts, products) {
+        async function getLostData(checkouts, products, tblItem, tblCheckout) {
 
             //data des checkouts pour recupérer le nom des items qui ne sont pas marqués dans stripe/charges
             const records_checkouts = [];
@@ -299,9 +304,11 @@
             await tblItem.upsert(records_items.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
             await tblCheckout.upsert(records_checkouts.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
 
+            
+
         }
 
-        async function table_SChargesAndJBanques(charges, transactions) {
+        async function table_SChargesAndJBanques(charges, transactions, tblStripe_charge, tblBanque) {
             const records_charges = [];
             const journaux_banque = [];
             for (const charge of charges ) {
@@ -336,16 +343,16 @@
                         payment_intent: charge.payment_intent,
                     };
                     journaux_banque.push(banque_charge_fee);
-                    await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
                 }
-                await tblStripe_charge.upsert(records_charges.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des paiements charges dans grist
+                await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
             }
-            
+            await tblStripe_charge.upsert(records_charges.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des paiements charges dans grist
+        
+            return [journaux_banque, tblBanque]
         }
 
-        async function table_SPayoutsAndJBanques(payouts) {
+        async function table_SPayoutsAndJBanques(payouts, journaux_banque, tblBanque, tblStripe_payout) {
             const records_payouts = [];
-            const journaux_banque = [];
             for (const payout of payouts) {
                 //data table Stripe_payouts
                 const record_payout =  {
@@ -371,9 +378,11 @@
             }
             await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
             await tblStripe_payout.upsert(records_payouts.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des payouts dans grist
+        
+            return [journaux_banque, tblBanque]
         }
 
-        async function table_SRefundsAndJBanques(refunds) {
+        async function table_SRefundsAndJBanques(refunds, journaux_banque, tblBanque, tblStripe_refund) {
             const records_refunds = [];
             for (const refund of refunds) {
                 //data table Journal_banque
@@ -400,9 +409,10 @@
                 records_refunds.push(record_refund);
             }
             await tblBanque.upsert(journaux_banque.map((r, index) => ({ require: { id: index + 1 }, fields: r })));
+            await tblStripe_refund.upsert(records_refunds.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des refunds dans grist
         }
 
-        async function table_STransactions(transactions) {
+        async function table_STransactions(transactions, tblStripe_transaction) {
             //data transactions
             const records_transactions = [];
             for (const transaction of transactions) {
@@ -416,7 +426,7 @@
             await tblStripe_transaction.upsert(records_transactions.map((r, index) => ({ require: { id: index + 1 }, fields: r })));//Ecriture des transactions dans grist pour recuperer les fee et net present seulement dans transactions
         }
 
-        async function table_JVente(orders) {
+        async function table_JVente(orders, tblOrders, tbl_detail, tblJournal) {
             const item_wc = await grist.docApi.fetchTable("Item_woocommerce");// recuperation des données des items woocommerce
             const records = [];
             const detailRecords = [];
@@ -586,7 +596,7 @@
             document.getElementById('not_paid_count').textContent = not_paid_value;
         }
 
-        async function onLoad() {
+        async function onLoad() { // Modification de l'accès aux éléments graphiques
             const loadButton = document.getElementById('loadButton');
             loadButton.disabled = true;
             loadButton.textContent = 'Chargement...';
@@ -600,28 +610,31 @@
        
             try{
                 const dates = await dateLogic();
-                startDate = dates[0];
-                endDate = dates[1];
-                GetAndDestroy();
+                [startDate, endDate] = dates;
+
+                const destoyed = GetAndDestroy();
+                [tblStripe_charge, tblStripe_payout, tblStripe_refund, tblStripe_transaction,
+                tblOrders, tbl_detail, tblJournal, tblBanque, tblCheckout, tblItem] = destoyed;
+
                 const config = await configTable();
-                wp_url = config[0];
-                wp_user = config[1];
-                wp_password = config[2];
-                stripe_url = config[3];
-                stripe_apikey = config[4];
+                [wp_url, wp_user, wp_password, stripe_url, stripe_apikey] = config;
+
                 const init = await initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey);
-                orders = init[0];
-                charges = init[1];
-                payouts = init[2];
-                refunds = init[3];
-                transactions = init[4];
-                checkouts = init[5];
-                products = init[6];
-                table_SChargesAndJBanques(charges, transactions);
-                table_SPayoutsAndJBanques(payouts);
-                table_SRefundsAndJBanques(refunds);
-                table_STransactions(transactions);
-                table_JVente(orders);
+                [orders, charges, payouts, refunds, transactions, checkouts, products] = init;
+
+                getLostData(checkouts, products, tblItem, tblCheckout);
+
+                //Section Journal de Banque
+                let newData = await table_SChargesAndJBanques(charges, transactions, tblStripe_charge, tblBanque);
+                let [newJournaux_banque, newtblBanque] = newData;
+
+                newData = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
+                [newJournaux_banque, newtblBanque] = newData;
+
+                table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
+
+                table_STransactions(transactions, tblStripe_transaction);
+                table_JVente(orders, tblOrders, tbl_detail, tblJournal)
             }
             catch (error) {
                 if (axios.isCancel(error)) {
