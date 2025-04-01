@@ -641,9 +641,9 @@
                 newData = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
                 [newJournaux_banque, newtblBanque] = newData;
 
-                table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
-                table_STransactions(transactions, tblStripe_transaction);
-                table_JVente(orders, tblOrders, tbl_detail, tblJournal)
+                await table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
+                await table_STransactions(transactions, tblStripe_transaction);
+                await table_JVente(orders, tblOrders, tbl_detail, tblJournal)
             }
             catch (error) {
                 if (axios.isCancel(error)) {
