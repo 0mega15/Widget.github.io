@@ -586,7 +586,7 @@
             document.getElementById('not_paid_count').textContent = not_paid_value;
         }
 
-        function onLoad() { // Modification de l'accès aux éléments graphiques
+        async function onLoad() {
             const loadButton = document.getElementById('loadButton');
             loadButton.disabled = true;
             loadButton.textContent = 'Chargement...';
