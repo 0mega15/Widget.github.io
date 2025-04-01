@@ -599,17 +599,17 @@
             abortController = new AbortController();
        
             try{
-                const dates = await(dateLogic());
+                const dates = await dateLogic();
                 startDate = dates[0];
                 endDate = dates[1];
                 GetAndDestroy();
-                const config = await(configTable());
+                const config = await configTable();
                 wp_url = config[0];
                 wp_user = config[1];
                 wp_password = config[2];
                 stripe_url = config[3];
                 stripe_apikey = config[4];
-                const init = await (initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey));
+                const init = await initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey);
                 orders = init[0];
                 charges = init[1];
                 payouts = init[2];
