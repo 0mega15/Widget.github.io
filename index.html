@@ -226,8 +226,8 @@
 
         async function dateLogic(){
 
-            let startDate = document.getElementById('startDate').value;
-            let endDate = document.getElementById('endDate').value;
+            let startDate = await document.getElementById('startDate').value;
+            let endDate =await document.getElementById('endDate').value;
 
             if (!startDate && !endDate){
                     const today = new Date();
