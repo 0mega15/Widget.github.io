@@ -147,8 +147,7 @@
 
             // Renvoi des tableaux détruit
             return [tblStripe_charge, tblStripe_payout, tblStripe_refund, tblStripe_transaction,
-                tblOrders, tbl_detail, tblJournal, tblBanque, tblCheckout, tblItem
-            ]
+                tblOrders, tbl_detail, tblJournal, tblBanque, tblCheckout, tblItem]
         } 
 
         async function configTable() { // Re-Créée la table config avec ses propres données
@@ -226,27 +225,35 @@
 
         async function dateLogic(){
 
-            let startDate = await document.getElementById('startDate').value;
-            let endDate =await document.getElementById('endDate').value;
+            let startDate = document.getElementById('startDate').value;
+            let endDate = document.getElementById('endDate').value;
 
-            if (!startDate && !endDate){
-                    const today = new Date();
-                    const currentMonth = today.getMonth();
-                    const currentYear = today.getFullYear();
-                    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-                    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-                    startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
-                    endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
-                    return [startDate,endDate]
-                }
-            else if(!endDate){
-                    endDate = new Date();
-                    return [startDate,endDate]
-                }
-            else if (startDate > endDate || !startDate) {
-                    alert("Veuillez sélectionner des dates de début et de fin cohérentes.");
-                    return;
-                }
+            if (!startDate && !endDate){ // OK
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+                const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
+                endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
+            }
+            else if(!startDate && endDate){
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+                const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
+            }
+            else if(!endDate && startDate){ 
+                endDate = new Date();
+            }
+            else if (startDate > endDate){
+                alert("Date incohérentes");
+                return [null, null]
+            }
+
+            return [startDate, endDate]
         }
 
         async function initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey) {
@@ -609,7 +616,10 @@
             abortController = new AbortController();
        
             try{
-                const dates = await dateLogic();
+                const dates = await dateLogic(); //Erreur lors du chargement des commandes: TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))
+                if (dates == [null, null]){
+                    return
+                }
                 [startDate, endDate] = dates;
 
                 const destroyed = await GetAndDestroy();
@@ -632,7 +642,6 @@
                 [newJournaux_banque, newtblBanque] = newData;
 
                 table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
-
                 table_STransactions(transactions, tblStripe_transaction);
                 table_JVente(orders, tblOrders, tbl_detail, tblJournal)
             }
