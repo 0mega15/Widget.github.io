@@ -612,9 +612,9 @@
                 const dates = await dateLogic();
                 [startDate, endDate] = dates;
 
-                const destoyed = GetAndDestroy();
+                const destroyed = await GetAndDestroy();
                 [tblStripe_charge, tblStripe_payout, tblStripe_refund, tblStripe_transaction,
-                tblOrders, tbl_detail, tblJournal, tblBanque, tblCheckout, tblItem] = destoyed;
+                tblOrders, tbl_detail, tblJournal, tblBanque, tblCheckout, tblItem] = destroyed;
 
                 const config = await configTable();
                 [wp_url, wp_user, wp_password, stripe_url, stripe_apikey] = config;
