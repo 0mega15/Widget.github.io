@@ -159,8 +159,6 @@
         }
 
         async function getOrdersFromWordpress(url, username, password, startDate, endDate, signal) { //Récupération des Ordees depuis Wordpress
-            alert(typeof(endDate));
-            alert(typeof(startDay));
             const star_d = new Date(startDate);
             const end_d = new Date(endDate);
             let output = [];
@@ -234,7 +232,6 @@
                     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
                     startDate = new Date(lastMonthYear, lastMonth, 1, 0, 0, 0, 0);
                     endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
-                    alert("ligne 237 " + toString(typeof(startDate)))
                     return [startDate,endDate]
                 }
             else if(!endDate){
@@ -256,7 +253,6 @@
             const transactions = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'balance_transactions',abortController.signal);
             const checkouts = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'checkout/sessions',abortController.signal);
             const products = await getChargesFromStripe(stripe_url, stripe_apikey, startDate, endDate, 'products',abortController.signal);
-            alert("ligne 259 " + toString(typeof(orders)))
             return [orders, charges, payouts, refunds, transactions, checkouts, products]
         }
 
@@ -306,7 +302,6 @@
         }
 
         async function table_SChargesAndJBanques(charges, transactions) {
-            alert(typeof(charges));
             const records_charges = [];
             const journaux_banque = [];
             for (const charge of charges ) {
@@ -604,26 +599,24 @@
             abortController = new AbortController();
        
             try{
-                dateLogic();
+                const dates = await(dateLogic());
+                startDate = dates[0];
+                endDate = dates[1];
                 GetAndDestroy();
-                configTable();
-                wp_url = configTable[0];
-                wp_user = configTable[1];
-                wp_password = configTable[2];
-                stripe_url = configTable[3];
-                stripe_apikey = configTable[4];
-                startDate = dateLogic[0];
-                alert("ligne 615 " + toString(typeof(startDate)))
-                endDate = dateLogic[1];
-                initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey);
-                orders = initTable[0];
-                alert("ligne 620 " + toString(typeof(orders)))
-                charges = initTable[1];
-                payouts = initTable[2];
-                refunds = initTable[3];
-                transactions = initTable[4];
-                checkouts = initTable[5];
-                products = initTable[6];
+                const config = await(configTable());
+                wp_url = config[0];
+                wp_user = config[1];
+                wp_password = config[2];
+                stripe_url = config[3];
+                stripe_apikey = config[4];
+                const init = await (initTable(startDate, endDate, wp_url, wp_user, wp_password, stripe_url, stripe_apikey));
+                orders = init[0];
+                charges = init[1];
+                payouts = init[2];
+                refunds = init[3];
+                transactions = init[4];
+                checkouts = init[5];
+                products = init[6];
                 table_SChargesAndJBanques(charges, transactions);
                 table_SPayoutsAndJBanques(payouts);
                 table_SRefundsAndJBanques(refunds);
