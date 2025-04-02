@@ -458,28 +458,6 @@
                         if(item_wc.Categorie[ind] == "Sejours"){ 
                             const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0; // si order.tax_lines.length > 0 est vrai, tax = parseFloat(item.taxes[0].total). sinon tax = 0
 
-                            const ind_sej = item_wc.Categorie.findIndex(record => record == "Sejour");
-                            const journal_sej = {
-                                Date_created0: order.date_created,
-                                order_id: order.id,
-                                libelle0: item_wc.Produits[ind_sej],
-                                credit: round((parseFloat(item.total)+tax)*0.1/1.1),
-                                debit0: null,
-                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
-                            }
-                            const journal_sej_TVA = {
-                                Date_created0: order.date_created,
-                                order_id: order.id,
-                                libelle0: 20,
-                                libelle_TVA: item_wc.Produits[ind_sej]+ ' - TVA',
-                                credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
-                                debit0: null,
-                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
-                            };
-                            journaux.push(journal_sej);
-                            journaux.push(journal_sej_TVA);
-                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
-
                             const ind_heb = item_wc.Categorie.findIndex(record => record == "Sejours_1");
                             const journal_heb = {
                                 Date_created0: order.date_created,
@@ -492,8 +470,10 @@
                             const journal_heb_TVA = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
+
                                 libelle0: 10,
                                 libelle_TVA: item_wc.Produits[ind_heb]+ ' - TVA',
+                                
                                 credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
