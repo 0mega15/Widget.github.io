@@ -455,7 +455,7 @@
                     // data pour la table Journal_Vente
                     if(order.status == "completed" || order.status == "refunded"){
                         const ind = item_wc.Produits.findIndex(record => record == `${item.name}`);
-                        if(item_wc.Categorie[ind] == "Sejours"){ 
+                        if(item_wc.Categorie[ind] == "Sejour"){ 
                             const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0; // si order.tax_lines.length > 0 est vrai, tax = parseFloat(item.taxes[0].total). sinon tax = 0
 
                             const ind_heb = item_wc.Categorie.findIndex(record => record == "Sejours_1");
