@@ -462,10 +462,10 @@
                             const journal_heb = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-                                libelle0: item_wc.Produits[ind_heb],
+                                libelle0: item.Produits[ind_heb] === 6.27 ? 20 : item_wc.Produits[ind_heb],
                                 credit: round((parseFloat(item.total)+tax)*0.1/1.1),
                                 debit0: null,
-                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name
                             };
                             const journal_heb_TVA = {
                                 Date_created0: order.date_created,
@@ -486,7 +486,7 @@
                                 Date_created0: order.date_created,
                                 order_id: order.id,
 
-                                libelle0: item_wc.Produits[ind_rest],
+                                libelle0: iitem.Produits[ind_rest] === 6.27 ? 20 : item_wc.Produits[ind_rest],
 
                                 credit: round((parseFloat(item.total)+tax)*0.1/1.1),
                                 debit0: null,
@@ -509,7 +509,7 @@
                             const journal_sejour = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-                                libelle0: item_wc.Produits[ind_ens],
+                                libelle0: item.Produits[ind_ens] === 6.27 ? 20 : item_wc.Produits[ind_ens],
                                 credit: round(((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
