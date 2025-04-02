@@ -438,24 +438,47 @@
             const records = [];
             const detailRecords = [];
             const journaux = [];
-            for (const order of orders) {
-                // data pour la table Journal_Vente
-                if(order.status == "completed" || order.status == "refunded"){
+            for (const order of orders) { // pour chaque ligne dans la table Orders
+                // data pour la table Journal_Vente en fonction des data de Order
+                if(order.status == "completed" || order.status == "refunded"){  // Cas où dans Order on est dans le status completed ou refunded
                     const journal_commande = {
-                        Date_created0: order.date_created,
-                        order_id: order.id,
-                        libelle0: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
-                        Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
-                        debit0: round(order.total),
+                        Date_created0: order.date_created,  
+                        order_id: order.id,                 
+                        libelle0: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,   
+                        Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,     
+                        debit0: round(order.total), // order.total = order.O_TTC          
                     };
                     journaux.push(journal_commande);
                 }
-                for(const item of order.line_items){
+
+                for(const item of order.line_items){ // pour chaque cellule dans la ligne 
                     // data pour la table Journal_Vente
                     if(order.status == "completed" || order.status == "refunded"){
                         const ind = item_wc.Produits.findIndex(record => record == `${item.name}`);
-                        if(item_wc.Categorie[ind] == "Sejours"){
-                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0;
+                        if(item_wc.Categorie[ind] == "Sejours"){ 
+                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0; // si order.tax_lines.length > 0 est vrai, tax = parseFloat(item.taxes[0].total). sinon tax = 0
+
+                            const ind_sej = item_wc.Categorie.findIndex(record => record == "Sejour");
+                            const journal_sej = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind_sej],
+                                credit: round((parseFloat(item.total)+tax)*0.1/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            }
+                            const journal_sej_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 20,
+                                libelle_TVA: item_wc.Produits[ind_sej]+ ' - TVA',
+                                credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            journaux.push(journal_sej);
+                            journaux.push(journal_sej_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
 
                             const ind_heb = item_wc.Categorie.findIndex(record => record == "Sejours_1");
                             const journal_heb = {
@@ -482,7 +505,9 @@
                             const journal_rest = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
+
                                 libelle0: item_wc.Produits[ind_rest],
+
                                 credit: round((parseFloat(item.total)+tax)*0.1/1.1),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
@@ -499,12 +524,12 @@
                             journaux.push(journal_rest);
                             journaux.push(journal_rest_TVA);
                             await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
-                            const ind_sej = item_wc.Categorie.findIndex(record => record == "Sejours_3");
+                            const ind_ens = item_wc.Categorie.findIndex(record => record == "Sejours_3");
 
                             const journal_sejour = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-                                libelle0: item_wc.Produits[ind_sej],
+                                libelle0: item_wc.Produits[ind_ens],
                                 credit: round(((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
@@ -514,7 +539,7 @@
                                 Date_created0: order.date_created,
                                 order_id: order.id,
                                 libelle0: 5.5,
-                                libelle_TVA: item_wc.Produits[ind_sej] + ' - TVA',
+                                libelle_TVA: item_wc.Produits[ind_ens] + ' - TVA',
                                 credit: round((((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055)*0.055),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
