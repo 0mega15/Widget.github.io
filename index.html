@@ -485,7 +485,9 @@
                             const journal_rest = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
+
                                 libelle0: item_wc.Produits[ind_rest],
+
                                 credit: round((parseFloat(item.total)+tax)*0.1/1.1),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
@@ -641,8 +643,8 @@
                 let newData = await table_SChargesAndJBanques(charges, transactions, tblStripe_charge, tblBanque);
                 let [newJournaux_banque, newtblBanque] = newData;
 
-                let newData2 = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
-                [newJournaux_banque, newtblBanque] = newData2;
+                newData = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
+                [newJournaux_banque, newtblBanque] = newData;
 
                 await table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
                 await table_STransactions(transactions, tblStripe_transaction);
