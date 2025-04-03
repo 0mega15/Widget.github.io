@@ -485,9 +485,7 @@
                             const journal_rest = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-
                                 libelle0: item_wc.Produits[ind_rest],
-
                                 credit: round((parseFloat(item.total)+tax)*0.1/1.1),
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
@@ -521,6 +519,31 @@
                                 libelle0: 5.5,
                                 libelle_TVA: item_wc.Produits[ind_ens] + ' - TVA',
                                 credit: round((((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055)*0.055),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+
+                            journaux.push(journal_sejour);
+                            journaux.push(journal_sejour_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                        }
+                        else if(item_wc.Categorie[ind] == "Sejour") {
+                            //const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0;
+
+                            const journal_sejour = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item.name,
+                                credit: round(item.total),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            const journal_sejour_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 20,
+                                libelle_TVA: item.name + ' - TVA',
+                                credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
@@ -643,8 +666,8 @@
                 let newData = await table_SChargesAndJBanques(charges, transactions, tblStripe_charge, tblBanque);
                 let [newJournaux_banque, newtblBanque] = newData;
 
-                newData = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
-                [newJournaux_banque, newtblBanque] = newData;
+                let newData2 = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
+                [newJournaux_banque, newtblBanque] = newData2;
 
                 await table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
                 await table_STransactions(transactions, tblStripe_transaction);
