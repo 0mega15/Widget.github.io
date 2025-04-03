@@ -542,7 +542,7 @@
                                 Date_created0: order.date_created,
                                 order_id: order.id,
                                 libelle0: 20,
-                                libelle_TVA: item.name + ' - TVA',
+                                libelle_TVA: item.name + ' - 20',
                                 credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
