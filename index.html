@@ -479,6 +479,7 @@
                                     Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
                                 };
                                 journaux.push(journal_heb, journal_heb_TVA);
+                                await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
                             } else if (category === "Sejours_2") {
                                 const journal_rest = {
                                     Date_created0: order.date_created,
@@ -498,6 +499,7 @@
                                     Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
                                 };
                                 journaux.push(journal_rest, journal_rest_TVA);
+                                await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
                             } else if (category === "Sejours_3") {
                                 const journal_sejour = {
                                     Date_created0: order.date_created,
@@ -517,7 +519,31 @@
                                     Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
                                 };
                                 journaux.push(journal_sejour, journal_sejour_TVA);
+                                await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
                             }
+                        } else if (category === "Sejour") {
+                            // Gestion spécifique pour la catégorie "Sejour" avec TVA à 20
+                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0;
+
+                            const journal_sejour = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind],
+                                credit: round((parseFloat(item.total) + tax) / 1.2),
+                                debit0: null,
+                                Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
+                            };
+                            const journal_sejour_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 20, // Taux de TVA correct pour Sejour
+                                libelle_TVA: `${item_wc.Produits[ind]} - TVA`,
+                                credit: round(((parseFloat(item.total) + tax) / 1.2) * 0.2),
+                                debit0: null,
+                                Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
+                            };
+                            journaux.push(journal_sejour, journal_sejour_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
                         } else {
                             // Gestion des autres catégories
                             const journal_item = {
@@ -538,6 +564,7 @@
                                 Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
                             };
                             journaux.push(journal_item, journal_tva);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
                         }
                     }
                     
