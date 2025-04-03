@@ -540,7 +540,7 @@
                                 Date_created0: order.date_created,
                                 order_id: order.id,
                                 //libelle0: order.tax_lines.length > 0 ? order.tax_lines[0].rate_percent : 0,
-                                libelle0: order.tax_lines,
+                                libelle0: order.tax_lines[0],
                                 libelle_TVA: order.tax_lines.length > 0 ? item.name + ' - ' + order.tax_lines[0].rate_percent : 0,
                                 credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
                                 debit0: null,
