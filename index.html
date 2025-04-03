@@ -536,17 +536,20 @@
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
+
+                            const tauxTVA = (val => (val === 5 || val === 6) ? 5.5 : val)(Math.round(item.taxes[0].total / item.total * 100));
+
+                            const journal_tva = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: tauxTVA,
+                                libelle_TVA: item.name + ' - '+ tauxTVA,
+                                credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
                             journaux.push(journal_item);
-                            if (Math.round(item.taxes[0].total / item.total * 100) === 0){
-                                const journal_tva = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: (val => (val === 5 || val === 6) ? 5.5 : val)(Math.round(item.taxes[0].total / item.total * 100)),
-                                    libelle_TVA: item.name + ' - '+ (val => (val === 5 || val === 6) ? 5.5 : val)(Math.round(item.taxes[0].total / item.total * 100)),
-                                    credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
-                                    debit0: null,
-                                    Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
-                                };
+                            if (tauxTVA !== 0){
                                 journaux.push(journal_tva);
                             }
                             await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
