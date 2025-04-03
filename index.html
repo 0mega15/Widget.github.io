@@ -451,120 +451,103 @@
                     journaux.push(journal_commande);
                 }
 
-                for (const item of order.line_items) { // pour chaque cellule dans la ligne
-                    if (order.status === "completed" || order.status === "refunded") {
-                        const ind = item_wc.Produits.findIndex(record => record === `${item.name}`);
-                        const category = item_wc.Categorie[ind];
+                for(const item of order.line_items){ // pour chaque cellule dans la ligne 
+                    // data pour la table Journal_Vente
+                    if(order.status == "completed" || order.status == "refunded"){
+                        const ind = item_wc.Produits.findIndex(record => record == `${item.name}`);
+                        if(item_wc.Categorie[ind] == "Sejours"){ 
+                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0; // si order.tax_lines.length > 0 est vrai, tax = parseFloat(item.taxes[0].total). sinon tax = 0
 
-                        if (category && category.startsWith("Sejours")) {
-                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0;
+                            const ind_heb = item_wc.Categorie.findIndex(record => record == "Sejours_1");
+                            const journal_heb = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind_heb],
+                                credit: round((parseFloat(item.total)+tax)*0.1/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            const journal_heb_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
 
-                            // Gestion des différentes sous-catégories de "Sejours"
-                            if (category === "Sejours_1") {
-                                const journal_heb = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: item_wc.Produits[ind],
-                                    credit: round((parseFloat(item.total) + tax) * 0.1 / 1.1),
-                                    debit0: null,
-                                    Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
-                                };
-                                const journal_heb_TVA = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: 10, // Taux de TVA correct pour Sejours_1
-                                    libelle_TVA: `${item_wc.Produits[ind]} - TVA`,
-                                    credit: round(0.1 * 0.1 * (parseFloat(item.total) + tax) / 1.1),
-                                    debit0: null,
-                                    Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
-                                };
-                                journaux.push(journal_heb, journal_heb_TVA);
-                                await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
-                            } else if (category === "Sejours_2") {
-                                const journal_rest = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: item_wc.Produits[ind],
-                                    credit: round((parseFloat(item.total) + tax) * 0.1 / 1.1),
-                                    debit0: null,
-                                    Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
-                                };
-                                const journal_rest_TVA = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: 10, // Taux de TVA correct pour Sejours_2
-                                    libelle_TVA: `${item_wc.Produits[ind]} - TVA`,
-                                    credit: round(0.1 * 0.1 * (parseFloat(item.total) + tax) / 1.1),
-                                    debit0: null,
-                                    Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
-                                };
-                                journaux.push(journal_rest, journal_rest_TVA);
-                                await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
-                            } else if (category === "Sejours_3") {
-                                const journal_sejour = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: item_wc.Produits[ind],
-                                    credit: round(((parseFloat(item.total) + tax) - 2 * (parseFloat(item.total) + tax) * 0.1) / 1.055),
-                                    debit0: null,
-                                    Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
-                                };
-                                const journal_sejour_TVA = {
-                                    Date_created0: order.date_created,
-                                    order_id: order.id,
-                                    libelle0: 5.5, // Taux de TVA correct pour Sejours_3
-                                    libelle_TVA: `${item_wc.Produits[ind]} - TVA`,
-                                    credit: round((((parseFloat(item.total) + tax) - 2 * (parseFloat(item.total) + tax) * 0.1) / 1.055) * 0.055),
-                                    debit0: null,
-                                    Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
-                                };
-                                journaux.push(journal_sejour, journal_sejour_TVA);
-                                await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
-                            }
-                        } else if (category === "Sejour") {
-                            // Gestion spécifique pour la catégorie "Sejour" avec TVA à 20
-                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0;
+                                libelle0: 10,
+                                libelle_TVA: item_wc.Produits[ind_heb]+ ' - TVA',
+                                
+                                credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            journaux.push(journal_heb);
+                            journaux.push(journal_heb_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                            const ind_rest = item_wc.Categorie.findIndex(record => record == "Sejours_2");
+                            const journal_rest = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: item_wc.Produits[ind_rest],
+                                credit: round((parseFloat(item.total)+tax)*0.1/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            const journal_rest_TVA = {
+                                Date_created0: order.date_created,
+                                order_id: order.id,
+                                libelle0: 10,
+                                libelle_TVA: item_wc.Produits[ind_rest]+ ' - TVA',
+                                credit: round(0.1*0.1*(parseFloat(item.total)+tax)/1.1),
+                                debit0: null,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
+                            };
+                            journaux.push(journal_rest);
+                            journaux.push(journal_rest_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                            const ind_ens = item_wc.Categorie.findIndex(record => record == "Sejours_3");
 
                             const journal_sejour = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-                                libelle0: item_wc.Produits[ind],
-                                credit: round((parseFloat(item.total) + tax) / 1.2),
+                                libelle0: item_wc.Produits[ind_ens],
+                                credit: round(((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055),
                                 debit0: null,
-                                Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
+
                             const journal_sejour_TVA = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-                                libelle0: 20, // Taux de TVA correct pour Sejour
-                                libelle_TVA: `${item_wc.Produits[ind]} - TVA`,
-                                credit: round(((parseFloat(item.total) + tax) / 1.2) * 0.2),
+                                libelle0: 5.5,
+                                libelle_TVA: item_wc.Produits[ind_ens] + ' - TVA',
+                                credit: round((((parseFloat(item.total)+tax) - 2*(parseFloat(item.total)+tax)*0.1)/1.055)*0.055),
                                 debit0: null,
-                                Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
-                            journaux.push(journal_sejour, journal_sejour_TVA);
-                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
-                        } else {
-                            // Gestion des autres catégories
+
+                            journaux.push(journal_sejour);
+                            journaux.push(journal_sejour_TVA);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
+                        }
+                        else{
                             const journal_item = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
                                 libelle0: item.name,
                                 credit: round(item.total),
                                 debit0: null,
-                                Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
                             const journal_tva = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
                                 libelle0: order.tax_lines.length > 0 ? order.tax_lines[0].rate_percent : 0,
-                                libelle_TVA: order.tax_lines.length > 0 ? `${item.name} - ${order.tax_lines[0].rate_percent}` : 0,
+                                libelle_TVA: order.tax_lines.length > 0 ? item.name + ' - ' + order.tax_lines[0].rate_percent : 0,
                                 credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
                                 debit0: null,
-                                Nom: `${order.billing.last_name.toUpperCase()} ${order.billing.first_name}`,
+                                Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
-                            journaux.push(journal_item, journal_tva);
-                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); // Écriture dans tblJournal
+                            journaux.push(journal_item);
+                            journaux.push(journal_tva);
+                            await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
                         }
                     }
                     
@@ -658,8 +641,8 @@
                 let newData = await table_SChargesAndJBanques(charges, transactions, tblStripe_charge, tblBanque);
                 let [newJournaux_banque, newtblBanque] = newData;
 
-                newData = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
-                [newJournaux_banque, newtblBanque] = newData;
+                let newData2 = await table_SPayoutsAndJBanques(payouts, newJournaux_banque, newtblBanque, tblStripe_payout);
+                [newJournaux_banque, newtblBanque] = newData2;
 
                 await table_SRefundsAndJBanques(refunds, newJournaux_banque, newtblBanque, tblStripe_refund);
                 await table_STransactions(transactions, tblStripe_transaction);
