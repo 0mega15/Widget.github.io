@@ -438,7 +438,7 @@
             const records = [];
             const detailRecords = [];
             const journaux = [];
-            for (const order of orders) { // pour chaque ligne dans la table Orders
+            for (const order of orders) { // pour chaque ligne dans la commande
                 // data pour la table Journal_Vente en fonction des data de Order
                 if(order.status == "completed" || order.status == "refunded"){  // Cas où dans Order on est dans le status completed ou refunded
                     const journal_commande = {
@@ -451,12 +451,12 @@
                     journaux.push(journal_commande);
                 }
 
-                for(const item of order.line_items){ // pour chaque cellule dans la ligne 
+                for(const item of order.line_items){ // pour chaque item dans la commande 
                     // data pour la table Journal_Vente
                     if(order.status == "completed" || order.status == "refunded"){
-                        const ind = item_wc.Produits.findIndex(record => record == `${item.name}`);
+                        const ind = item_wc.Produits.findIndex(record => record == `${item.name}`); //item.name est le nom de l'item dans woocommerce(item_name)
                         if(item_wc.Categorie[ind] == "Sejours"){ 
-                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0; // si order.tax_lines.length > 0 est vrai, tax = parseFloat(item.taxes[0].total). sinon tax = 0
+                            const tax = order.tax_lines.length > 0 ? parseFloat(item.taxes[0].total) : 0; // recupere la TVA de l'item
 
                             const ind_heb = item_wc.Categorie.findIndex(record => record == "Sejours_1");
                             const journal_heb = {
@@ -536,7 +536,9 @@
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
                             };
-                            const journal_tva = {
+                            journaux.push(journal_item);
+                            if (Math.round(item.taxes[0].total / item.total * 100) == 0){
+                                const journal_tva = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
                                 libelle0: (val => (val === 5 || val === 6) ? 5.5 : val)(Math.round(item.taxes[0].total / item.total * 100)),
@@ -544,9 +546,9 @@
                                 credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
-                            };
-                            journaux.push(journal_item);
-                            journaux.push(journal_tva);
+                                };
+                                journaux.push(journal_tva);
+                            }
                             await tblJournal.upsert(journaux.map((r, index) => ({ require: { id: index + 1 }, fields: r }))); //Ecriture du journal de vente
                         }
                     }
