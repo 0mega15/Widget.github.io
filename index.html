@@ -539,9 +539,8 @@
                             const journal_tva = {
                                 Date_created0: order.date_created,
                                 order_id: order.id,
-                                //libelle0: order.tax_lines.length > 0 ? order.tax_lines[0].rate_percent : 0,
-                                libelle0: order.tax_lines.find((t) => t.rate_id == item.taxes[0].id).rate_percent,
-                                libelle_TVA: order.tax_lines.length > 0 ? item.name + ' - ' + order.tax_lines[0].rate_percent : 0,
+                                libelle0: round(item.taxes[0].total / item.total) * 100,
+                                libelle_TVA: item.name + ' - '+round(item.taxes[0].total / item.total) * 100,
                                 credit: order.tax_lines.length > 0 ? round(item.taxes[0].total) : 0,
                                 debit0: null,
                                 Nom: order.billing.last_name.toUpperCase() +' '+ order.billing.first_name,
